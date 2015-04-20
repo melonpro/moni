@@ -1,0 +1,21 @@
+//
+//  ViewController.h
+//  moni
+//
+//  Created by yue on 14-4-10.
+//  Copyright (c) 2014年 melonpro. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "MONI.h"
+#import "Header.h"
+
+@interface ViewController : UITableViewController<UITableViewDataSource,UITableViewDelegate>
+{
+    UIImageView *detail_back;
+    NSMutableArray *items;
+    NSString *info;
+    NSMutableDictionary *stateDictionary;
+}
+@property (strong, nonatomic) NSArray *listData;
+@end

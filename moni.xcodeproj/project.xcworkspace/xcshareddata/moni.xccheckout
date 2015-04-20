@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>F5E67D47-580B-462A-9CC9-BB844E5F9F1D</string>
+	<key>IDESourceControlProjectName</key>
+	<string>moni</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>AC0BBF30-FE7F-4582-B10E-17A031260E87</key>
+		<string>file://localhost/Users/zhaoyue/Documents/versions/moni/moni</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>moni.xcodeproj/project.xcworkspace</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>AC0BBF30-FE7F-4582-B10E-17A031260E87</key>
+		<string>../..</string>
+	</dict>
+	<key>IDESourceControlProjectRepositoryRootDictionary</key>
+	<dict>
+		<key>AC0BBF30-FE7F-4582-B10E-17A031260E87</key>
+		<string>file://localhost/Users/zhaoyue/Documents/versions/moni/moni</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>file://localhost/Users/zhaoyue/Documents/versions/moni/moni/moni.xcodeproj</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>110</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>AC0BBF30-FE7F-4582-B10E-17A031260E87</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.subversion</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>AC0BBF30-FE7F-4582-B10E-17A031260E87</string>
+			<key>IDESourceControlWCCName</key>
+			<string>moni</string>
+		</dict>
+	</array>
+</dict>
+</plist>

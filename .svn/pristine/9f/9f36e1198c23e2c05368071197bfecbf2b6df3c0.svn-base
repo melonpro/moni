@@ -1,0 +1,575 @@
+//
+//  MONI.m
+//  moni
+//
+//  Created by yue on 14-3-10.
+//  Copyright (c) 2014年 melonpro. All rights reserved.
+//
+
+#import "MONI.h"
+
+@implementation MONI
+@synthesize text;
+
+-(void)viewDidLoad
+{
+
+    NSArray *path = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documents = [path objectAtIndex:0];
+    NSString *database_path = [documents stringByAppendingPathComponent:DBNAME];
+    
+    if (sqlite3_open([database_path UTF8String], &db) != SQLITE_OK)
+    {
+        sqlite3_close(db);
+        NSLog(@"数据库打开失败");
+    }
+
+
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+
+    swipe = [[UISwipeGestureRecognizer alloc]initWithTarget:self action:@selector(keyboard:)];
+    [swipe setDirection:UISwipeGestureRecognizerDirectionDown];
+    [self.view addGestureRecognizer:swipe];
+    
+    drop = [[UIView alloc]initWithFrame:self.view.bounds];
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentDirectory = [paths objectAtIndex:0];
+    NSString *file = [documentDirectory stringByAppendingPathComponent:@"File.txt"];
+    NSLog(@"View DidLoad\nFile address:%@\n",file);
+     NSString *costfile = [documentDirectory stringByAppendingPathComponent:@"costFile.txt"];
+    
+    FILE *fp;
+    fp = fopen([file UTF8String], "r");
+    sum = [[NSString stringWithContentsOfFile:file
+                                     encoding:NSUTF8StringEncoding
+                                        error:nil] floatValue];
+    NSLog(@"View Load Cost: %.2f",sum);
+    fclose(fp);
+    
+    
+    NSMutableArray *costf = [[NSMutableArray alloc]initWithContentsOfFile:costfile];
+    NSLog(@"--costf----\n%@",costf);
+    NSString *imagePath = [documentDirectory
+                           stringByAppendingPathComponent:@"backgroung-img.png"];
+    
+    background_img = [[UIImage alloc]initWithContentsOfFile: imagePath];
+    if (background_img == nil)
+    {
+        background_img = [UIImage imageNamed:@"background.PNG"];
+    }
+    
+    moniback = [[UIImageView alloc]initWithImage:background_img];
+    CGRect rect = CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height);
+    [moniback clipsToBounds];
+    moniback.contentMode = UIViewContentModeScaleAspectFill;
+    [moniback setFrame:rect];
+    [moniback setNeedsDisplay];
+    
+    [self.view addSubview:moniback];
+    
+    sumcount = [[UILabel alloc]initWithFrame:CGRectMake(100, 120, 200, 100)];
+    sumcount.center = CGPointMake(160,90);
+    sumcount.text = [NSString stringWithFormat:@"Cost: %.1f\n",sum];
+    sumcount.textAlignment = 1;
+    sumcount.font = [UIFont fontWithName:@"American Typewriter"
+                                    size:20.0f];
+    [self.view addSubview:sumcount];
+    
+    NSDate *dateToday = [NSDate date];
+    NSDateFormatter *df = [[NSDateFormatter alloc]init];
+    [df setDateFormat:@"yyyy.MM.dd"];
+    NSString *date = [NSString stringWithFormat:@"%@", [df stringFromDate:dateToday]];
+    
+    UILabel *dateLabel = [[UILabel alloc]initWithFrame:CGRectMake(100, 120, 200, 100)];
+    dateLabel.center = CGPointMake(160,120);
+    dateLabel.text = [NSString stringWithFormat:@"%@",date];
+    dateLabel.textAlignment = 1;
+    dateLabel.font = [UIFont fontWithName:@"American Typewriter"
+                                    size:18.0f];
+    [self.view addSubview:dateLabel];
+
+    text = [[UITextField alloc]initWithFrame:CGRectMake(0.0f, 0.0f, self.view.bounds.size.width, 100)];
+    text.backgroundColor = [[UIColor clearColor]colorWithAlphaComponent:0.0f];
+    text.borderStyle = UITextBorderStyleRoundedRect;
+    text.placeholder = @"input cost";
+    text.font = [UIFont fontWithName:@"American Typewriter"
+                                size:20.0f];
+    text.clearButtonMode = UITextFieldViewModeAlways;
+    text.textAlignment = 1;
+    text.keyboardType = UIKeyboardTypeDecimalPad;
+    text.returnKeyType = UIReturnKeyDone;
+    text.inputAccessoryView  = [self accessoryView];
+    
+    pigbutton  =[UIButton buttonWithType:UIButtonTypeCustom];
+    pigbutton.frame = CGRectMake(120, 200, 80, 80);
+    [pigbutton setImage:[UIImage imageNamed:@"pig.png"] forState:UIControlStateNormal];
+    [pigbutton setTitle:@"pig" forState:UIControlStateNormal];
+    [pigbutton addTarget:self
+                  action:@selector(keyboardWillShow:) forControlEvents:UIControlEventTouchDragOutside];
+    [self.view addSubview:pigbutton];
+    
+    [self setType];
+    [drop addSubview:text];
+    [drop addSubview:type];
+    NSLog(@"MONI viewDidLoad\n");
+    
+    [self getAllCost];
+    sqlite3_close(db);
+
+    
+}
+
+-(void)setType
+{
+    float width = self.view.frame.size.width;
+    type = [[UIScrollView alloc]initWithFrame:
+            CGRectMake(0.0 ,  100, width ,200.0f)];
+    type.contentSize = CGSizeMake(2 * width, 200.0f);
+    type.pagingEnabled = YES;
+    type.delegate = self;
+    type.backgroundColor = [UIColor whiteColor];
+    
+    typelable = [[UILabel alloc]initWithFrame:
+                 CGRectMake(110, self.view.bounds.size.width/2, 100, 50)];
+    typelable.textAlignment = 1;
+    typelable.textColor = [UIColor darkGrayColor];
+    typelable.font = [UIFont fontWithName:@"American Typewriter"
+                                     size:20.0f];
+    UIButton *shopping = [UIButton buttonWithType:UIButtonTypeCustom];
+    shopping.frame = CGRectMake(30, 30, 55, 55);
+    [shopping setImage:[UIImage imageNamed:@"shopping.png"]
+              forState:UIControlStateNormal];
+    shopping.tag = 0;
+    [shopping addTarget:self
+                 action:@selector(btnPressed:)
+       forControlEvents:UIControlEventTouchDown];
+    
+    UIButton *food = [UIButton buttonWithType:UIButtonTypeCustom];
+    food.frame = CGRectMake(130, 30, 55, 55);
+    [food setImage:[UIImage imageNamed:@"food.png"]
+          forState:UIControlStateNormal];
+    food.tag = 1;
+    [food addTarget:self
+             action:@selector(btnPressed:)
+   forControlEvents:UIControlEventTouchDown];
+    
+    UIButton *drink = [UIButton buttonWithType:UIButtonTypeCustom];
+    drink.frame = CGRectMake(220, 30, 55, 55);
+    [drink setImage:[UIImage imageNamed:@"drink.png"]
+           forState:UIControlStateNormal];
+    drink.tag = 2;
+    [drink addTarget:self
+              action:@selector(btnPressed:)
+    forControlEvents:UIControlEventTouchDown];
+    
+    UIButton *traffic = [UIButton buttonWithType:UIButtonTypeCustom];
+    traffic.frame = CGRectMake(30, 100, 55, 55);
+    [traffic setImage:[UIImage imageNamed:@"traffic.png"]
+             forState:UIControlStateNormal];
+    traffic.tag = 3;
+    [traffic addTarget:self
+                action:@selector(btnPressed:)
+      forControlEvents:UIControlEventTouchDown];
+    
+    UIButton *medic = [UIButton buttonWithType:UIButtonTypeCustom];
+    medic.frame = CGRectMake(130, 100, 55, 55);
+    [medic setImage:[UIImage imageNamed:@"medic.png"]
+           forState:UIControlStateNormal];
+    medic.tag = 4;
+    [medic addTarget:self
+              action:@selector(btnPressed:)
+    forControlEvents:UIControlEventTouchDown];
+    
+    UIButton *travel = [UIButton buttonWithType:UIButtonTypeCustom];
+    travel.frame = CGRectMake(220, 100, 55, 55);
+    [travel setImage:[UIImage imageNamed:@"travel.png"]
+            forState:UIControlStateNormal];
+    travel.tag = 5;
+    [travel addTarget:self
+               action:@selector(btnPressed:)
+     forControlEvents:UIControlEventTouchDown];
+    
+    [type addSubview:shopping];
+    [type addSubview:food];
+    [type addSubview:drink];
+    [type addSubview:traffic];
+    [type addSubview:medic];
+    [type addSubview:travel];
+    [type addSubview:typelable];
+}
+
+-(void)updatesum
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentDirectory = [paths objectAtIndex:0];
+    NSString *file = [documentDirectory stringByAppendingPathComponent:@"File.txt"];
+    NSLog(@"file address:%@\n",file);
+    
+    FILE *fp;
+    fp = fopen([file UTF8String], "r");
+    sum = [[NSString stringWithContentsOfFile:file
+                                     encoding:NSUTF8StringEncoding
+                                        error:nil] floatValue];
+    NSLog(@"Update Sum Cost:%.2f",sum);
+    
+}
+
+-(void)pushtest:(id)sender//test日历
+{
+    CKViewController *calendar =[[CKViewController alloc]init];
+    [self.navigationController pushViewController:calendar animated:YES];
+}
+
+-(void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidDisappear:NO];
+    
+    [moniback setImage: background_img];
+    CGRect rect = CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height);
+    [moniback clipsToBounds];
+    moniback.contentMode = UIViewContentModeScaleAspectFill;
+    [moniback setFrame:rect];
+    [moniback setNeedsDisplay];
+}
+
+-(void)keyboard:(NSNotification *)notification
+{
+    if (swipe.direction==UISwipeGestureRecognizerDirectionDown)
+    {
+        NSLog(@"KeyBoard:swipe down");
+    }
+
+    [drop setHidden:NO];
+    [UIView setAnimationDuration:0.3f];
+    [UIView setAnimationRepeatAutoreverses:NO];
+    [text becomeFirstResponder];
+
+    [self.navigationController.navigationBar setHidden:YES];
+    [sumcount setHidden:YES];
+    [self.view addSubview:drop];
+    [UIView commitAnimations];
+    
+}
+
+- (void)keyboardWillShow:(NSNotification *)notification
+{
+    // NSLog(@"%f %f",self.view.frame.size.width,self.view.frame.size.height);
+    NSDictionary *userInfo = [notification userInfo];
+    NSValue* aValue = [userInfo objectForKey:UIKeyboardFrameEndUserInfoKey];
+    CGRect keyboardRect = [aValue CGRectValue];
+    keyboardRect = [self.view convertRect:keyboardRect fromView:nil];
+    
+    CGRect newtextMoniViewFrame = CGRectMake(0.0f, 0.0f, self.view.bounds.size.width, 100);
+    
+    NSValue *animationDurationValue = [userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey];
+    NSTimeInterval animationDuration;
+    [animationDurationValue getValue:&animationDuration];
+    
+    [UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:animationDuration];
+    
+    [self.navigationController.navigationBar setHidden:YES];
+    
+    
+    [sumcount setHidden:YES];
+    
+    textMoni.frame = newtextMoniViewFrame;
+    
+    textMoni.backgroundColor = [[UIColor clearColor]colorWithAlphaComponent:0.0f];
+    textMoni.borderStyle = UITextBorderStyleRoundedRect;
+    textMoni.placeholder = @"input cost";
+    textMoni.font = [UIFont fontWithName:@"American Typewriter"
+                                    size:20.0f];
+    textMoni.clearButtonMode = UITextFieldViewModeAlways;
+    textMoni.textAlignment = 1;
+    textMoni.keyboardType = UIKeyboardTypeDecimalPad;
+    textMoni.returnKeyType = UIReturnKeyDone;
+    text.text = textMoni.text;
+    [textMoni setEnabled:YES];
+    [UIView commitAnimations];
+
+}
+
+- (void)keyboardWillHide : (NSNotification *)notification
+{
+    
+    NSDictionary* userInfo = [notification userInfo];
+    NSValue *animationDurationValue = [userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey];
+    NSTimeInterval animationDuration;
+    [animationDurationValue getValue:&animationDuration];
+    
+    [UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:animationDuration];
+    
+    [self.navigationController.navigationBar setHidden:NO];
+    textMoni.frame = CGRectMake(60, 150, 200, 100);
+    textMoni.backgroundColor = [[UIColor clearColor]colorWithAlphaComponent:0.0f];
+    [sumcount setHidden:NO];
+    [type setHidden:YES];
+ 
+    [UIView commitAnimations];
+
+  }
+
+-(BOOL)textFieldShouldReturn:(UITextField *)textField
+{
+    return YES;
+}
+
+- (BOOL)textFieldShouldBeginEditing:(UITextField *)textField
+{
+    return NO;
+}
+
+-(void)setCost:(float)input
+{
+    sum = sum + input;
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentDirectory = [paths objectAtIndex:0];
+    NSString *file = [documentDirectory stringByAppendingPathComponent:@"File.txt"];
+    NSString *detail = [documentDirectory stringByAppendingPathComponent:@"Cost.txt"];
+    FILE *fp,*detailfp;
+    fp = fopen([file UTF8String], "wb");
+    detailfp = fopen([detail UTF8String], "a+");
+    
+    NSDate *dateToday = [NSDate date];
+    NSDateFormatter *df = [[NSDateFormatter alloc]init];
+    [df setDateFormat:@"yyyy-MM-dd"];
+    NSLocale *locale = [NSLocale currentLocale];
+    [df setLocale:locale];
+    NSString *date = [NSString stringWithFormat:@"%@\n", [df stringFromDate:dateToday]];
+    [df release];
+
+    const char *a = [[NSString stringWithFormat:@"%3.2f",sum] UTF8String];
+    const char *b = [[[NSString stringWithFormat:@"-%3.2f  / %@  / ",input,typelable.text]stringByAppendingString:date] UTF8String];
+    
+    length ++;
+    fputs(a,fp);
+    fputs(b, detailfp);
+    fclose(fp);
+    fclose(detailfp);
+}
+
+-(void)buttonPressed:(id)sender
+{
+    float money;
+    if ([text.text floatValue] != 0)
+    {
+       money = [text.text floatValue];
+    }
+    else
+    {
+        text.text = textMoni.text;
+        money = [text.text floatValue];
+    }
+    
+    [self setCost:money];
+
+    cost.mo = money;
+
+    NSDate *dateToday = [NSDate date];
+    NSDateFormatter *df = [[NSDateFormatter alloc]init];
+    [df setDateFormat:@"yyyy-MM-dd"];
+    NSLocale *locale = [NSLocale currentLocale];
+    
+    [df setLocale:locale];
+    NSString *date = [NSString stringWithFormat:@"%@", [df stringFromDate:dateToday]];
+    NSString *moneym = [NSString stringWithFormat:@"￥%3.2f",[text.text floatValue]];
+    [df release];
+    NSString *message = [typelable.text stringByAppendingString:@"\n"];
+    message = [message stringByAppendingString:date];
+    
+    UIAlertView *alert =[ [[UIAlertView alloc]initWithTitle:moneym
+                                                    message:message
+                                                   delegate:nil
+                                          cancelButtonTitle:nil
+                                          otherButtonTitles:@"ok",nil]autorelease ];
+    [alert show];
+    
+    sumcount.transform = CGAffineTransformIdentity;
+    sumcount.text = [NSString stringWithFormat:@"Cost : %3.2f\n",sum];
+    [text setText:@""];
+    NSLog(@"%f",sum);
+}
+
+-(void)leaveKeyboardMode
+{
+    [text resignFirstResponder];
+    [drop setHidden:YES];
+    [textMoni resignFirstResponder];
+    [text setText:@""];
+    [textMoni setText:@""];
+
+}
+
+-(void)cleartext
+{
+    [text setText:@""];
+    [textMoni setText:@""];
+}
+
+-(void)btnPressed:(UIButton *)sender
+{
+    NSLog(@"button pressed ");
+    cost.tag = (int)sender.tag;
+    NSLog(@"%d-tag\n",cost.tag);
+    switch (cost.tag)
+    {
+        case 0:
+            typelable.text = @"shopping";
+            typelable.text = @"shpping";
+            break;
+        case 1:
+            typelable.text = @"food";
+            typelable.text = @"food";
+            break;
+        case 2:
+            typelable.text = @"drink";
+            typelable.text = @"drink";
+            break;
+        case 3:
+            typelable.text = @"traffic";
+            typelable.text = @"traffic";
+            break;
+        case 4:
+            typelable.text = @"medical";
+            typelable.text = @"medical";
+            break;
+        case 5:
+            typelable.text = @"travel";
+            typelable.text = @"travel";
+            break;
+    }
+}
+
+-(UIToolbar *)accessoryView
+{
+    toolbar = [[UIToolbar alloc]initWithFrame:
+               CGRectMake(0.0f, 0.0f, self.view.frame.size.width, 50.0f)];
+    toolbar.tintColor = [UIColor lightGrayColor];
+    NSMutableArray *items = [NSMutableArray array];
+    
+    [items addObject:BARBUTTON(@"clear", @selector(cleartext))];
+    [items addObject:SYSBARBUTTON(UIBarButtonSystemItemFlexibleSpace,nil)];
+    [items addObject:BARBUTTON(@"COST", @selector(buttonPressed:))];
+    [items addObject:SYSBARBUTTON(UIBarButtonSystemItemFlexibleSpace,nil)];
+    [items addObject:BARBUTTON(@"done", @selector(leaveKeyboardMode))];
+    toolbar.items = items;
+    
+    return toolbar;
+}
+
+- (void) push:(id)sender
+{
+    [self.navigationController pushViewController:newController
+                                         animated:YES];
+}
+
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event
+{
+    return YES;
+}
+
+-(void)insertIntoTablewithDate:(NSString *)date_s Cost:(NSString *)cost_s Type:(NSString *)type_s
+{
+    char *errorMsg;
+    NSString *sql = [NSString stringWithFormat:@"INSERT INTO CostInfo ('%@', '%@', '%@') VALUES('%@', '%@', '%@')", DATE, COST, TYPE, date_s, cost_s, type_s];
+    if (sqlite3_exec(db, [sql UTF8String], NULL, NULL, &errorMsg) != SQLITE_OK)
+    {
+        sqlite3_close(db);
+        NSAssert(0, @"插入数据错误！");
+    }
+    sqlite3_free(errorMsg);
+}
+
+- (void)getAllCost
+{
+    NSString *sql = @"SELECT * FROM CostInfo";
+    sqlite3_stmt *statement;
+    
+    if (sqlite3_prepare_v2(db, [sql UTF8String], -1, &statement, nil) == SQLITE_OK)
+    {
+        while (sqlite3_step(statement) == SQLITE_ROW)
+        {
+            char *ids = (char *)sqlite3_column_text(statement, 0);
+            NSString *idStr = [[NSString alloc]initWithUTF8String:ids];
+            
+            char *date = (char *)sqlite3_column_text(statement, 1);
+            NSString *dateStr = [[NSString alloc] initWithUTF8String:date];
+            
+            char *cost = (char *)sqlite3_column_text(statement, 2);
+            NSString *costStr = [[NSString alloc] initWithUTF8String:cost];
+            
+            char *type_ = (char *)sqlite3_column_text(statement, 3);
+            NSString *typeStr = [[NSString alloc] initWithUTF8String:type_];
+            
+            NSString *info = [[NSString alloc] initWithFormat:@"%@ - %@ - %@ - %@",
+                              idStr,dateStr, costStr, typeStr];
+            
+            NSLog(@"%@",info);
+            
+            [dateStr release];
+            [costStr release];
+            [typeStr release];
+            [info release];
+        }
+        
+        sqlite3_finalize(statement);
+    }
+}
+
+- (void)deleteFromCostInfoWhere:(NSString *)coloum equalTo:(NSString *)value
+{
+    char *errorMsg;
+    
+    NSString *sql = [NSString stringWithFormat:@"DELETE FROM CostInfo where %@ like '%%%@%%' ",coloum,value];
+    if (sqlite3_exec(db,[ sql UTF8String], NULL, NULL, &errorMsg)==SQLITE_OK)
+    {
+        NSLog(@"delete ok.");
+    }
+    else
+    {
+        NSLog( @"can not delete it" );
+    }
+}
+
+-(void)selectFromCostInfoWhere:(NSString *)coloum equalTo:(NSString *)value
+{
+    sqlite3_stmt *statement;
+    NSString *sql = [NSString stringWithFormat:@"SELECT * FROM CostInfo where %@ like '%%%@%%' ",coloum,value];
+    
+    if (sqlite3_prepare_v2(db, [sql UTF8String], -1, &statement, nil) == SQLITE_OK)
+    {
+        while (sqlite3_step(statement) == SQLITE_ROW)
+        {
+            char *ids = (char *)sqlite3_column_text(statement, 0);
+            NSString *idStr = [[NSString alloc]initWithUTF8String:ids];
+            
+            char *date = (char *)sqlite3_column_text(statement, 1);
+            NSString *dateStr = [[NSString alloc] initWithUTF8String:date];
+            
+            char *cost = (char *)sqlite3_column_text(statement, 2);
+            NSString *costStr = [[NSString alloc] initWithUTF8String:cost];
+            
+            char *type_ = (char *)sqlite3_column_text(statement, 3);
+            NSString *typeStr = [[NSString alloc] initWithUTF8String:type_];
+            
+            NSString *info = [[NSString alloc] initWithFormat:@"%@ - %@ - %@ - %@",
+                              idStr,dateStr, costStr, typeStr];
+            
+            NSLog(@"select :%@",info);
+            
+            [dateStr release];
+            [costStr release];
+            [typeStr release];
+            [info release];
+        }
+        
+        sqlite3_finalize(statement);
+    }
+}
+
+
+
+@end
